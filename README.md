@@ -1,24 +1,24 @@
 <!--
 ---
-name: Azure Functions Python CosmosDb Trigger using Azure Developer CLI
-description: This repository contains an Azure Functions CosmosDb trigger quickstart written in Python and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
+name: Azure Functions TypeScript CosmosDb Trigger using Azure Developer CLI
+description: This repository contains an Azure Functions CosmosDb trigger quickstart written in TypeScript and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
 page_type: sample
 products:
 - azure-functions
 - azure-cosmos-db
 - azure
 - entra-id
-urlFragment: starter-cosmosdb-trigger-python
+urlFragment: starter-cosmosdb-trigger-typescript
 languages:
-- python
+- typescript
 - bicep
 - azdeveloper
 ---
 -->
 
-# Azure Functions with Cosmos DB Trigger (Python)
+# Azure Functions with Cosmos DB Trigger (TypeScript)
 
-An Azure Functions QuickStart project that demonstrates how to use a Cosmos DB Trigger with Azure Developer CLI (azd) for quick and easy deployment, using Python 3.11 or higher.
+An Azure Functions QuickStart project that demonstrates how to use a Cosmos DB Trigger with Azure Developer CLI (azd) for quick and easy deployment, using TypeScript and Node.js 20 or higher.
 
 ## Architecture
 
@@ -47,13 +47,13 @@ This serverless architecture enables highly scalable, event-driven processing wi
 * Azure Functions Flex Consumption plan
 * Azure Developer CLI (azd) integration for easy deployment
 * Infrastructure as Code using Bicep templates
-* Python 3.11+ support
+* TypeScript (Node.js 20+) support
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Python 3.11+](https://www.python.org/downloads/)
+- [Node.js 20+](https://nodejs.org/en/about/releases/)
 - [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools)
 - [Azure Developer CLI (azd)](https://docs.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - [Azurite](https://github.com/Azure/Azurite)
@@ -63,8 +63,8 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
 1. Clone this repository
    ```bash
-   git clone https://github.com/Azure-Samples/functions-quickstart-python-azd-cosmosdb.git
-   cd functions-quickstart-python-azd-cosmosdb
+   git clone https://github.com/Azure-Samples/functions-quickstart-typescript-azd-cosmosdb.git
+   cd functions-quickstart-typescript-azd-cosmosdb
    ```
 
 2. Make scripts executable (Mac/Linux):
@@ -91,8 +91,8 @@ This serverless architecture enables highly scalable, event-driven processing wi
      "IsEncrypted": false,
      "Values": {
        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-       "FUNCTIONS_WORKER_RUNTIME": "python",
-       "COSMOS_CONNECTION__accountEndpoint": "https://{accountName}.documents.azure.com:443/",
+       "FUNCTIONS_WORKER_RUNTIME": "node",
+       "COSMOS_CONNECTION": "<your-cosmos-connection-string>",
        "COSMOS_DATABASE_NAME": "documents-db",
        "COSMOS_CONTAINER_NAME": "documents"
      }
@@ -101,15 +101,14 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
    The `azd` command automatically sets up the required connection strings and application settings.
 
-4. (Optional) Create and activate a Python virtual environment:
+4. (Optional) Install dependencies:
    ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+   npm install
    ```
 
-5. Install Python dependencies:
+5. Build the TypeScript project:
    ```bash
-   pip install -r requirements.txt
+   npm run build
    ```
 
 6. Start the function locally
@@ -132,7 +131,7 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
    When the document is created or modified, the function will trigger automatically. You should see console output like:
    ```
-   Documents modified: 1
+   Cosmos DB function processed 1 documents
    First document: { ... }
    First document id: doc-001
    ```
@@ -143,7 +142,7 @@ This serverless architecture enables highly scalable, event-driven processing wi
    ```
    This will build your function app and deploy it to Azure. The deployment process:
    - Checks for any bicep changes using `azd provision`
-   - Packages the Python project
+   - Packages the TypeScript project
    - Publishes the function app using `azd deploy`
    - Updates application settings in Azure
 
@@ -166,33 +165,35 @@ This function is triggered by changes in Cosmos DB documents using the change fe
 
 These are automatically set up by azd during deployment for both local and cloud environments.
 
-### Core Python Implementation
+### Core TypeScript Implementation
 
 Here is the core implementation of the Cosmos DB trigger function in this repo:
 
-```python
-import os
-import azure.functions as func
-import logging
+```typescript
+import { app, InvocationContext } from "@azure/functions";
 
-app = func.FunctionApp()
+export async function cosmos_trigger(documents: unknown[], context: InvocationContext): Promise<void> {
+    context.log(`Cosmos DB function processed ${documents.length} documents`);
 
-@app.cosmos_db_trigger(
-    arg_name="documents",
-    container_name=os.environ.get("COSMOS_CONTAINER_NAME"),
-    database_name=os.environ.get("COSMOS_DATABASE_NAME"),
-    connection="COSMOS_CONNECTION",
-    create_lease_container_if_not_exists="true",
-)
-def cosmos_trigger(documents: func.DocumentList):
-    logging.info("Python CosmosDB triggered.")
-    logging.info(f"Documents modified: {len(documents)}")
-    if documents:
-        for doc in documents:
-            logging.info(f"First document: {doc.to_json()}")
-            logging.info(f"First document id: {doc.get('id')}")
-    else:
-        logging.info("No documents found.")
+    if (documents && documents.length > 0) {
+        for (const doc of documents) {
+            context.log(`First document: ${JSON.stringify(doc)}`);
+            if (doc && typeof doc === "object" && "id" in doc) {
+                context.log(`First document id: ${(doc as { id?: string }).id}`);
+            }
+        }
+    } else {
+        context.log("No documents found.");
+    }
+}
+
+app.cosmosDB('cosmos_trigger', {
+    connectionStringSetting: 'COSMOS_CONNECTION',
+    databaseName: 'documents-db',
+    collectionName: 'documents',
+    createLeaseCollectionIfNotExists: true,
+    handler: cosmos_trigger
+});
 ```
 
 The function uses a lease container to track processed changes and support multiple instances. When documents are added or modified in the monitored container, the change feed automatically triggers this function.

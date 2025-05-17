@@ -15,10 +15,12 @@ export async function cosmos_trigger(documents: unknown[], context: InvocationCo
     }
 }
 
+
 app.cosmosDB('cosmos_trigger', {
     connection: 'COSMOS_CONNECTION',
     databaseName: 'documents-db',
     containerName: 'documents',
-    createLeaseCollectionIfNotExists: true,
+    createLeaseContainerIfNotExists: true,
     handler: cosmos_trigger
 });
+

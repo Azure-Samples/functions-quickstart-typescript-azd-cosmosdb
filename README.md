@@ -1,7 +1,7 @@
 <!--
 ---
-name: Azure Functions TypeScript Cosmos DB Change Feed Modes using Azure Developer CLI
-description: This repository contains Azure Functions Cosmos DB LatestVersion and AllVersionsAndDeletes trigger samples written in TypeScript and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
+name: Azure Functions TypeScript CosmosDb Trigger using Azure Developer CLI
+description: This repository contains an Azure Functions CosmosDb trigger quickstart written in TypeScript and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
 page_type: sample
 products:
 - azure-functions
@@ -16,7 +16,7 @@ languages:
 ---
 -->
 
-# Azure Functions with Cosmos DB Change Feed Modes (TypeScript)
+# Azure Functions with Cosmos DB Trigger (TypeScript)
 
 An Azure Functions QuickStart project that runs two triggers over the same Cosmos DB container. `cosmos_trigger` retains the existing latest-version behavior, while `cosmos_all_versions_and_deletes_trigger` processes every create, replace, and delete operation by using `CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes`.
 
@@ -58,13 +58,13 @@ This serverless architecture enables highly scalable, event-driven processing wi
 - Azure Functions Flex Consumption plan
 - Azure Developer CLI (azd) integration for easy deployment
 - Infrastructure as Code using Bicep templates
-- TypeScript (Node.js 20+) support
+- TypeScript on Node.js 24
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Node.js 20+](https://nodejs.org/en/about/releases/)
+- [A supported Node.js version](https://learn.microsoft.com/azure/azure-functions/supported-languages?pivots=programming-language-javascript#languages-by-runtime-version)
 - [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools)
 - [Azure Developer CLI (azd)](https://docs.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) authenticated with `az login`
@@ -124,6 +124,18 @@ This serverless architecture enables highly scalable, event-driven processing wi
    ```
 
    The `azd` command automatically sets up the required identity-based connection and application settings. Enabling All Versions and Deletes can take up to 30 minutes.
+
+   To run locally against an existing Cosmos DB account instead, copy the settings template and replace its placeholder values. The signed-in identity must have a Cosmos DB data-plane role on the account.
+
+   ```bash
+   cp local.settings.json.template local.settings.json
+   ```
+
+   On Windows:
+
+   ```powershell
+   Copy-Item local.settings.json.template local.settings.json
+   ```
 
 4. Install dependencies:
 

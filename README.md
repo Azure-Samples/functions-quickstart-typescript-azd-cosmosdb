@@ -1,7 +1,7 @@
 <!--
 ---
-name: Azure Functions TypeScript CosmosDb Trigger using Azure Developer CLI
-description: This repository contains an Azure Functions CosmosDb trigger quickstart written in TypeScript and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
+name: Azure Functions TypeScript Cosmos DB Change Feed Modes using Azure Developer CLI
+description: This repository contains Azure Functions Cosmos DB latest-version and full-fidelity trigger samples written in TypeScript and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network to make sure deployment is secure by default.
 page_type: sample
 products:
 - azure-functions
@@ -16,9 +16,9 @@ languages:
 ---
 -->
 
-# Azure Functions with Cosmos DB Trigger (TypeScript)
+# Azure Functions with Cosmos DB Change Feed Modes (TypeScript)
 
-An Azure Functions QuickStart project that demonstrates how to use a Cosmos DB Trigger with Azure Developer CLI (azd) for quick and easy deployment, using TypeScript and Node.js 20 or higher.
+An Azure Functions QuickStart project that runs two triggers over the same Cosmos DB container. `cosmos_trigger` retains the existing latest-version behavior, while `cosmos_full_fidelity_trigger` processes every create, replace, and delete operation by using the `FullFidelity` mode.
 
 > **Looking for another language?** This quickstart is also available in
 > [C# (.NET)](https://github.com/Azure-Samples/functions-quickstart-dotnet-azd-cosmosdb) |
@@ -31,12 +31,12 @@ An Azure Functions QuickStart project that demonstrates how to use a Cosmos DB T
 
 ![Azure Functions Cosmos DB Trigger Architecture](./diagrams/architecture.drawio.png)
 
-This architecture shows how the Azure Function is triggered automatically when documents are created or modified in Cosmos DB through the change feed mechanism. The key components include:
+This architecture shows how the Azure Function is triggered automatically when documents are created, modified, or deleted in Cosmos DB through the change feed mechanism. The key components include:
 
-- **Client Applications**: Create or update documents in Cosmos DB
+- **Client Applications**: Create, replace, or delete documents in Cosmos DB
 - **Azure Cosmos DB**: Stores documents and provides change feed capabilities
-- **Change Feed**: Detects modifications to documents in Cosmos DB
-- **Azure Function with Cosmos DB Trigger**: Executes automatically when changes are detected
+- **Change Feed**: Captures every create, replace, and delete operation in order
+- **Azure Functions with Cosmos DB Triggers**: Compare latest-version and full-fidelity processing
 - **Lease Container**: Tracks which changes have been processed to ensure reliability and support for multiple function instances
 - **Azure Monitor**: Provides logging and metrics for the function execution
 - **Downstream Services**: Optional integration with other services that receive processed data
@@ -50,11 +50,15 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
 ## Features
 
-* Cosmos DB Trigger
-* Azure Functions Flex Consumption plan
-* Azure Developer CLI (azd) integration for easy deployment
-* Infrastructure as Code using Bicep templates
-* TypeScript (Node.js 20+) support
+- Existing Cosmos DB latest-version trigger
+- Cosmos DB Trigger with `FullFidelity` change feed mode
+- Independent lease prefixes so both triggers process the same writes
+- Typed create, replace, delete, and TTL-delete metadata
+- Continuous backup with seven-day change retention
+- Azure Functions Flex Consumption plan
+- Azure Developer CLI (azd) integration for easy deployment
+- Infrastructure as Code using Bicep templates
+- TypeScript (Node.js 20+) support
 
 ## Getting Started
 
@@ -63,91 +67,136 @@ This serverless architecture enables highly scalable, event-driven processing wi
 - [Node.js 20+](https://nodejs.org/en/about/releases/)
 - [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools)
 - [Azure Developer CLI (azd)](https://docs.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) authenticated with `az login`
 - [Azurite](https://github.com/Azure/Azurite)
 - An Azure subscription
+
+> [!IMPORTANT]
+> The Cosmos DB Emulator doesn't support All Versions and Deletes mode. The function runs locally, but it must connect to the Azure Cosmos DB for NoSQL account provisioned by this sample. Azurite is used only for the Functions host storage setting.
 
 ### Quickstart
 
 1. Clone this repository
+
    ```bash
    git clone https://github.com/Azure-Samples/functions-quickstart-typescript-azd-cosmosdb.git
    cd functions-quickstart-typescript-azd-cosmosdb
    ```
 
 2. Make scripts executable (Mac/Linux):
+
    ```bash
    chmod +x ./infra/scripts/*.sh
    ```
+
    On Windows:
+
    ```powershell
    set-executionpolicy remotesigned
    ```
 
 3. Provision Azure resources using azd
+
    ```bash
    azd provision
    ```
+
    This will create all necessary Azure resources including:
-   - Azure Cosmos DB account
+
+   - Azure Cosmos DB for NoSQL account with continuous seven-day backup
    - Azure Function App
    - App Service Plan
    - Other supporting resources
+   - The All Versions and Deletes account feature, enabled by the post-provision hook
    - `local.settings.json` for local development with Azure Functions Core Tools, which should look like this:
+
    ```json
    {
      "IsEncrypted": false,
      "Values": {
        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
        "FUNCTIONS_WORKER_RUNTIME": "node",
-       "COSMOS_CONNECTION": "<your-cosmos-connection-string>",
+       "COSMOS_CONNECTION__accountEndpoint": "https://<account-name>.documents.azure.com:443/",
        "COSMOS_DATABASE_NAME": "documents-db",
        "COSMOS_CONTAINER_NAME": "documents"
      }
    }
    ```
 
-   The `azd` command automatically sets up the required connection strings and application settings.
+   The `azd` command automatically sets up the required identity-based connection and application settings. Enabling All Versions and Deletes can take up to 30 minutes.
 
-4. (Optional) Install dependencies:
+4. Install dependencies:
+
    ```bash
    npm install
    ```
 
 5. Build the TypeScript project:
+
    ```bash
    npm run build
    ```
 
-6. Start the function locally
+   Run the zero-cloud handler test:
+
    ```bash
-   func start
+   npm test
    ```
+
+6. Start Azurite, then start the functions locally in a separate terminal. Start the functions before changing any documents because full-fidelity mode starts from the current time.
+
+   ```bash
+   azurite --silent
+   ```
+
+   ```bash
+   npm start
+   ```
+
    Or use VS Code to run the project with the built-in Azure Functions extension by pressing F5.
 
-7. Test the function locally by creating a document in your Cosmos DB container
+7. In the Azure portal, open the provisioned Cosmos DB account, select **Data Explorer**, and create this item in the `documents-db` database and `documents` container:
 
-   You can use Azure Portal or Azure CLI to create a document like this:
    ```json
    {
-     "id": "doc-001",
-     "Text": "This is a sample document",
-     "Number": 42,
-     "Boolean": true
+     "id": "change-feed-test",
+     "status": "created",
+     "sequence": 1
    }
    ```
 
-   When the document is created or modified, the function will trigger automatically. You should see console output like:
-   ```
+   On create, both triggers run. The latest-version trigger logs the document, while the full-fidelity trigger also logs the operation type:
+
+   ```text
    Cosmos DB function processed 1 documents
-   First document: { ... }
-   First document id: doc-001
+   First document id: change-feed-test
+   Operation: create; document id: change-feed-test
    ```
 
+   Replace `status` with `"updated"` and `sequence` with `2`, then save it again. Both triggers run:
+
+   ```text
+   Cosmos DB function processed 1 documents
+   First document id: change-feed-test
+   Operation: replace; document id: change-feed-test
+   ```
+
+   Delete the item. Only the full-fidelity trigger receives the delete:
+
+   ```text
+   Operation: delete; document id: change-feed-test
+   ```
+
+   Wait for both invocations before performing the next operation. Their order in the terminal can vary. A delete event can contain an empty `current` object, so the full-fidelity handler treats it as absent and reads its ID and partition key from `metadata`.
+
 8. Deploy to Azure
+
    ```bash
    azd up
    ```
+
    This will build your function app and deploy it to Azure. The deployment process:
+
    - Checks for any bicep changes using `azd provision`
    - Packages the TypeScript project
    - Publishes the function app using `azd deploy`
@@ -164,7 +213,7 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
 ## Understanding the Function
 
-This function is triggered by changes in Cosmos DB documents using the change feed. The key environment variables that configure its behavior are:
+Both functions monitor the configured container. The key environment variables that configure them are:
 
 - `COSMOS_CONNECTION__accountEndpoint`: The Cosmos DB account endpoint
 - `COSMOS_DATABASE_NAME`: The name of the database to monitor
@@ -172,45 +221,20 @@ This function is triggered by changes in Cosmos DB documents using the change fe
 
 These are automatically set up by azd during deployment for both local and cloud environments.
 
-### Core TypeScript Implementation
+### Core TypeScript Implementations
 
-Here is the core implementation of the Cosmos DB trigger function in this repo:
+- [`src/functions/cosmos_trigger.ts`](src/functions/cosmos_trigger.ts) contains the existing latest-version handler. It receives plain documents for creates and replaces.
+- [`src/functions/cosmos_full_fidelity_trigger.ts`](src/functions/cosmos_full_fidelity_trigger.ts) contains the new full-fidelity handler. It receives `CosmosDBChangeFeedItem<T>` envelopes with operation metadata and delete events.
 
-```typescript
-import { app, InvocationContext } from "@azure/functions";
-
-export async function cosmos_trigger(documents: unknown[], context: InvocationContext): Promise<void> {
-    context.log(`Cosmos DB function processed ${documents.length} documents`);
-
-    if (documents && documents.length > 0) {
-        for (const doc of documents) {
-            context.log(`First document: ${JSON.stringify(doc)}`);
-            if (doc && typeof doc === "object" && "id" in doc) {
-                context.log(`First document id: ${(doc as { id?: string }).id}`);
-            }
-        }
-    } else {
-        context.log("No documents found.");
-    }
-}
-
-app.cosmosDB('cosmos_trigger', {
-    connectionStringSetting: 'COSMOS_CONNECTION',
-    databaseName: 'documents-db',
-    collectionName: 'documents',
-    createLeaseCollectionIfNotExists: true,
-    handler: cosmos_trigger
-});
-```
-
-The function uses a lease container to track processed changes and support multiple instances. When documents are added or modified in the monitored container, the change feed automatically triggers this function.
+Both functions use the pre-provisioned `leases` container with different `leaseContainerPrefix` values, allowing them to process the same source container independently. Full-fidelity mode can start from now or from an existing lease checkpoint; it doesn't support `startFromBeginning` or `startFromTime`.
 
 ## Monitoring and Logs
 
 You can monitor your function in the Azure Portal:
+
 1. Navigate to your function app in the Azure Portal
 2. Select "Functions" from the left menu
-3. Click on your function (cosmos_trigger)
+3. Click on `cosmos_trigger` or `cosmos_full_fidelity_trigger`
 4. Select "Monitor" to view execution logs
 
 Use the "Live Metrics" feature to see real-time information when testing.
@@ -225,4 +249,5 @@ If you deploy with `vnetEnabled=true`, all access to Cosmos DB is restricted to 
 
 - [Azure Functions Documentation](https://docs.microsoft.com/azure/azure-functions/)
 - [Cosmos DB Documentation](https://docs.microsoft.com/azure/cosmos-db/)
+- [Cosmos DB Change Feed Modes](https://learn.microsoft.com/azure/cosmos-db/nosql/change-feed-modes)
 - [Azure Developer CLI Documentation](https://docs.microsoft.com/azure/developer/azure-developer-cli/)

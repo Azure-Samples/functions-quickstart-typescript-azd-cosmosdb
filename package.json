@@ -8,10 +8,10 @@
     "clean": "rimraf dist",
     "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "echo \"No tests yet...\""
+    "test": "npm run build && node --test dist/test/cosmos_trigger.test.js"
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0"
+    "@azure/functions": "^4.16.4"
   },
   "devDependencies": {
     "@types/node": "^20.x",

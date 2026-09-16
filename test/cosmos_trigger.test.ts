@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { CosmosDBChangeFeedItem, InvocationContext, trigger } from "@azure/functions";
-import { cosmos_full_fidelity_trigger } from "../src/functions/cosmos_full_fidelity_trigger";
+import { CosmosDBChangeFeedItem, CosmosDBv4ChangeFeedMode, InvocationContext, trigger } from "@azure/functions";
+import { cosmos_all_versions_and_deletes_trigger } from "../src/functions/cosmos_all_versions_and_deletes_trigger";
 import { cosmos_trigger } from "../src/functions/cosmos_trigger";
 
 interface TestDocument {
@@ -10,27 +10,28 @@ interface TestDocument {
     [property: string]: unknown;
 }
 
-test("maps FullFidelity to the Cosmos DB extension wire value", () => {
+test("registers both Cosmos DB change feed mode enum values", () => {
     const latestVersionBinding = trigger.cosmosDB({
         connection: "COSMOS_CONNECTION",
         databaseName: "%COSMOS_DATABASE_NAME%",
         containerName: "%COSMOS_CONTAINER_NAME%",
-        leaseContainerPrefix: "latest-version"
+        leaseContainerPrefix: "latest-version",
+        changeFeedMode: CosmosDBv4ChangeFeedMode.LatestVersion
     });
-    const fullFidelityBinding = trigger.cosmosDB({
+    const allVersionsAndDeletesBinding = trigger.cosmosDB({
         connection: "COSMOS_CONNECTION",
         databaseName: "%COSMOS_DATABASE_NAME%",
         containerName: "%COSMOS_CONTAINER_NAME%",
-        leaseContainerPrefix: "full-fidelity",
-        changeFeedMode: "FullFidelity"
+        leaseContainerPrefix: "all-versions-and-deletes",
+        changeFeedMode: CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes
     });
 
-    assert.equal(latestVersionBinding.changeFeedMode, undefined);
+    assert.equal(latestVersionBinding.changeFeedMode, "LatestVersion");
     assert.equal(latestVersionBinding.leaseContainerPrefix, "latest-version");
-    assert.equal(fullFidelityBinding.changeFeedMode, "AllVersionsAndDeletes");
-    assert.equal(fullFidelityBinding.leaseContainerPrefix, "full-fidelity");
-    assert.equal(fullFidelityBinding.databaseName, "%COSMOS_DATABASE_NAME%");
-    assert.equal(fullFidelityBinding.containerName, "%COSMOS_CONTAINER_NAME%");
+    assert.equal(allVersionsAndDeletesBinding.changeFeedMode, "AllVersionsAndDeletes");
+    assert.equal(allVersionsAndDeletesBinding.leaseContainerPrefix, "all-versions-and-deletes");
+    assert.equal(allVersionsAndDeletesBinding.databaseName, "%COSMOS_DATABASE_NAME%");
+    assert.equal(allVersionsAndDeletesBinding.containerName, "%COSMOS_CONTAINER_NAME%");
 });
 
 test("logs latest-version Cosmos DB documents", async () => {
@@ -47,9 +48,9 @@ test("logs latest-version Cosmos DB documents", async () => {
     assert.ok(logs.includes("First document id: item-2"));
 });
 
-test("logs full-fidelity Cosmos DB changes", async () => {
+test("logs AllVersionsAndDeletes Cosmos DB changes", async () => {
     const logs: string[] = [];
-    const context = new InvocationContext({ functionName: "cosmos_full_fidelity_trigger" });
+    const context = new InvocationContext({ functionName: "cosmos_all_versions_and_deletes_trigger" });
     context.log = (...args: unknown[]): void => {
         logs.push(args.join(" "));
     };
@@ -73,9 +74,9 @@ test("logs full-fidelity Cosmos DB changes", async () => {
         }
     ];
 
-    await cosmos_full_fidelity_trigger(changes, context);
+    await cosmos_all_versions_and_deletes_trigger(changes, context);
 
-    assert.ok(logs.includes("Cosmos DB full-fidelity function processed 4 changes"));
+    assert.ok(logs.includes("Cosmos DB AllVersionsAndDeletes function processed 4 changes"));
     assert.ok(logs.includes("Operation: create; document id: item-1"));
     assert.ok(logs.includes("Operation: replace; document id: item-1"));
     assert.ok(logs.includes("Operation: delete; document id: item-1"));

@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { CosmosDBChangeFeedItem, CosmosDBv4ChangeFeedMode, InvocationContext, trigger } from "@azure/functions";
 import { cosmos_all_versions_and_deletes_trigger } from "../src/functions/cosmos_all_versions_and_deletes_trigger";
+import { cosmos_latest_version_trigger } from "../src/functions/cosmos_latest_version_trigger";
 import { cosmos_trigger } from "../src/functions/cosmos_trigger";
 
 interface TestDocument {
@@ -46,6 +47,20 @@ test("logs latest-version Cosmos DB documents", async () => {
     assert.ok(logs.includes("Cosmos DB function processed 2 documents"));
     assert.ok(logs.includes("First document id: item-1"));
     assert.ok(logs.includes("First document id: item-2"));
+});
+
+test("logs explicitly configured LatestVersion Cosmos DB documents", async () => {
+    const logs: string[] = [];
+    const context = new InvocationContext({ functionName: "cosmos_latest_version_trigger" });
+    context.log = (...args: unknown[]): void => {
+        logs.push(args.join(" "));
+    };
+
+    await cosmos_latest_version_trigger([{ id: "item-1" }, { id: "item-2" }], context);
+
+    assert.ok(logs.includes("Cosmos DB LatestVersion function processed 2 documents"));
+    assert.ok(logs.includes("LatestVersion document id: item-1"));
+    assert.ok(logs.includes("LatestVersion document id: item-2"));
 });
 
 test("logs AllVersionsAndDeletes Cosmos DB changes", async () => {

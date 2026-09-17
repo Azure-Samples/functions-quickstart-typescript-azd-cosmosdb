@@ -1,4 +1,4 @@
-import { app, CosmosDBv4ChangeFeedMode, InvocationContext } from "@azure/functions";
+import { app, InvocationContext } from "@azure/functions";
 
 export async function cosmos_trigger(documents: unknown[], context: InvocationContext): Promise<void> {
     context.log(`Cosmos DB function processed ${documents.length} documents`);
@@ -15,14 +15,12 @@ export async function cosmos_trigger(documents: unknown[], context: InvocationCo
     }
 }
 
+
 app.cosmosDB('cosmos_trigger', {
     connection: 'COSMOS_CONNECTION',
-    databaseName: '%COSMOS_DATABASE_NAME%',
-    containerName: '%COSMOS_CONTAINER_NAME%',
-    leaseContainerName: 'leases',
-    leaseContainerPrefix: 'latest-version',
+    databaseName: 'documents-db',
+    containerName: 'documents',
     createLeaseContainerIfNotExists: true,
-    changeFeedMode: CosmosDBv4ChangeFeedMode.LatestVersion,
     handler: cosmos_trigger
 });
 

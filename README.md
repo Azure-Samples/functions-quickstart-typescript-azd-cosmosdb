@@ -18,7 +18,7 @@ languages:
 
 # Azure Functions with Cosmos DB Trigger (TypeScript)
 
-An Azure Functions QuickStart project that runs two triggers over the same Cosmos DB container. `cosmos_trigger` retains the existing latest-version behavior, while `cosmos_all_versions_and_deletes_trigger` processes every create, replace, and delete operation by using `CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes`.
+An Azure Functions QuickStart project that runs three triggers over the same Cosmos DB container. The existing `cosmos_trigger` remains unchanged, `cosmos_latest_version_trigger` demonstrates `CosmosDBv4ChangeFeedMode.LatestVersion`, and `cosmos_all_versions_and_deletes_trigger` demonstrates `CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes`.
 
 > **Looking for another language?** This quickstart is also available in
 > [C# (.NET)](https://github.com/Azure-Samples/functions-quickstart-dotnet-azd-cosmosdb) |
@@ -36,7 +36,7 @@ This architecture shows how the Azure Function is triggered automatically when d
 - **Client Applications**: Create, replace, or delete documents in Cosmos DB
 - **Azure Cosmos DB**: Stores documents and provides change feed capabilities
 - **Change Feed**: Captures every create, replace, and delete operation in order
-- **Azure Functions with Cosmos DB Triggers**: Compare LatestVersion and AllVersionsAndDeletes processing
+- **Azure Functions with Cosmos DB Triggers**: Compare the existing default trigger with explicit LatestVersion and AllVersionsAndDeletes processing
 - **Lease Container**: Tracks which changes have been processed to ensure reliability and support for multiple function instances
 - **Azure Monitor**: Provides logging and metrics for the function execution
 - **Downstream Services**: Optional integration with other services that receive processed data
@@ -51,8 +51,9 @@ This serverless architecture enables highly scalable, event-driven processing wi
 ## Features
 
 - Existing Cosmos DB latest-version trigger
+- Separate trigger with `CosmosDBv4ChangeFeedMode.LatestVersion`
 - Cosmos DB Trigger with `CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes`
-- Independent lease prefixes so both triggers process the same writes
+- Independent lease prefixes so the explicit mode samples process the same writes
 - Typed create, replace, delete, and TTL-delete metadata
 - Continuous backup with seven-day change retention
 - Azure Functions Flex Consumption plan
@@ -177,19 +178,23 @@ This serverless architecture enables highly scalable, event-driven processing wi
    }
    ```
 
-   On create, both triggers run. The LatestVersion trigger logs the document, while the AllVersionsAndDeletes trigger also logs the operation type:
+   On create, all three triggers run. The original and explicit LatestVersion triggers log the document, while the AllVersionsAndDeletes trigger also logs the operation type:
 
    ```text
    Cosmos DB function processed 1 documents
    First document id: change-feed-test
+   Cosmos DB LatestVersion function processed 1 documents
+   LatestVersion document id: change-feed-test
    Operation: create; document id: change-feed-test
    ```
 
-   Replace `status` with `"updated"` and `sequence` with `2`, then save it again. Both triggers run:
+   Replace `status` with `"updated"` and `sequence` with `2`, then save it again. All three triggers run:
 
    ```text
    Cosmos DB function processed 1 documents
    First document id: change-feed-test
+   Cosmos DB LatestVersion function processed 1 documents
+   LatestVersion document id: change-feed-test
    Operation: replace; document id: change-feed-test
    ```
 
@@ -199,7 +204,7 @@ This serverless architecture enables highly scalable, event-driven processing wi
    Operation: delete; document id: change-feed-test
    ```
 
-   Wait for both invocations before performing the next operation. Their order in the terminal can vary. A delete event can contain an empty `current` object, so the AllVersionsAndDeletes handler treats it as absent and reads its ID and partition key from `metadata`.
+   Wait for all expected invocations before performing the next operation. Their order in the terminal can vary. A delete event can contain an empty `current` object, so the AllVersionsAndDeletes handler treats it as absent and reads its ID from `metadata`.
 
 8. Deploy to Azure
 
@@ -225,7 +230,7 @@ This serverless architecture enables highly scalable, event-driven processing wi
 
 ## Understanding the Function
 
-Both functions monitor the configured container. The key environment variables that configure them are:
+The original `cosmos_trigger` remains unchanged and uses the sample's `documents-db` database and `documents` container. The two explicit mode samples use these environment variables:
 
 - `COSMOS_CONNECTION__accountEndpoint`: The Cosmos DB account endpoint
 - `COSMOS_DATABASE_NAME`: The name of the database to monitor
@@ -236,9 +241,10 @@ These are automatically set up by azd during deployment for both local and cloud
 ### Core TypeScript Implementations
 
 - [`src/functions/cosmos_trigger.ts`](src/functions/cosmos_trigger.ts) contains the existing latest-version handler. It receives plain documents for creates and replaces.
+- [`src/functions/cosmos_latest_version_trigger.ts`](src/functions/cosmos_latest_version_trigger.ts) contains the explicit LatestVersion enum sample. It receives plain documents for creates and replaces.
 - [`src/functions/cosmos_all_versions_and_deletes_trigger.ts`](src/functions/cosmos_all_versions_and_deletes_trigger.ts) contains the AllVersionsAndDeletes handler. It receives `CosmosDBChangeFeedItem<T>` envelopes with operation metadata and delete events and registers with `CosmosDBv4ChangeFeedMode.AllVersionsAndDeletes`.
 
-Both functions use the pre-provisioned `leases` container with different `leaseContainerPrefix` values, allowing them to process the same source container independently. AllVersionsAndDeletes mode can start from now or from an existing lease checkpoint; it doesn't support `startFromBeginning` or `startFromTime`.
+The explicit mode samples use the pre-provisioned `leases` container with different `leaseContainerPrefix` values, allowing them to process the same source container independently while leaving the original trigger registration untouched. AllVersionsAndDeletes mode can start from now or from an existing lease checkpoint; it doesn't support `startFromBeginning` or `startFromTime`.
 
 ## Monitoring and Logs
 
@@ -246,7 +252,7 @@ You can monitor your function in the Azure Portal:
 
 1. Navigate to your function app in the Azure Portal
 2. Select "Functions" from the left menu
-3. Click on `cosmos_trigger` or `cosmos_all_versions_and_deletes_trigger`
+3. Click on `cosmos_trigger`, `cosmos_latest_version_trigger`, or `cosmos_all_versions_and_deletes_trigger`
 4. Select "Monitor" to view execution logs
 
 Use the "Live Metrics" feature to see real-time information when testing.

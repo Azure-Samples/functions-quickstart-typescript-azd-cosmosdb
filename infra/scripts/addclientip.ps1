@@ -37,14 +37,15 @@ else {
         }
     }
     if ($false -eq $IPExists) {
-        # Add the client IP to the network rule of the Azure CosmosDB account and mark the public network access as enabled
+        # Add the client IP to the network rule of the Azure CosmosDB account
         Write-Output "Adding the client IP $ClientIP to the network rule of the Azure CosmosDB service $CosmosDBResourceName"
         az cosmosdb update --resource-group $ResourceGroup  --name $CosmosDBResourceName --ip-range-filter $ClientIP > $null
-        # Mark the public network access as enabled since the client IP is added to the network rule
-        $CosmosDBResourceId = az cosmosdb show --resource-group $ResourceGroup --name $CosmosDBResourceName --query id
-        az resource update  --ids $CosmosDBResourceId --set properties.publicNetworkAccess="Enabled" > $null
     }
     else {
         Write-Output "The client IP $ClientIP is already in the network rule of the Azure Cosmos DB service $CosmosDBResourceName"
     }
+
+    # Provisioning can disable public access while preserving an existing IP rule.
+    $CosmosDBResourceId = az cosmosdb show --resource-group $ResourceGroup --name $CosmosDBResourceName --query id --output tsv
+    az resource update --ids $CosmosDBResourceId --set properties.publicNetworkAccess="Enabled" > $null
 }

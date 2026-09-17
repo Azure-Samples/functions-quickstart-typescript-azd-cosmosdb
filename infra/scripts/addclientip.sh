@@ -35,9 +35,11 @@ else
     if [[ -z $IPExists ]]; then
         echo "Adding the client IP $ClientIP to the network rule of the Azure CosmosDB service $CosmosDBResourceName"
         az cosmosdb update --resource-group "$ResourceGroup" --name "$CosmosDBResourceName" --ip-range-filter "$ClientIP" > /dev/null
-        CosmosDBResourceId=$(az cosmosdb show --resource-group "$ResourceGroup" --name "$CosmosDBResourceName" --query id -o tsv)
-        az resource update --ids "$CosmosDBResourceId" --set properties.publicNetworkAccess="Enabled" > /dev/null
     else
         echo "The client IP $ClientIP is already in the network rule of the Azure Cosmos DB service $CosmosDBResourceName"
     fi
+
+    # Provisioning can disable public access while preserving an existing IP rule.
+    CosmosDBResourceId=$(az cosmosdb show --resource-group "$ResourceGroup" --name "$CosmosDBResourceName" --query id -o tsv)
+    az resource update --ids "$CosmosDBResourceId" --set properties.publicNetworkAccess="Enabled" > /dev/null
 fi

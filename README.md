@@ -31,15 +31,17 @@ An Azure Functions QuickStart project that runs three triggers over the same Cos
 
 ![Azure Functions Cosmos DB Trigger Architecture](./diagrams/architecture.drawio.png)
 
-This architecture shows how the Azure Function is triggered automatically when documents are created, modified, or deleted in Cosmos DB through the change feed mechanism. The key components include:
+This diagram shows the shared single-trigger architecture used by each function in the sample. The key components include:
 
 - **Client Applications**: Create, replace, or delete documents in Cosmos DB
 - **Azure Cosmos DB**: Stores documents and provides change feed capabilities
 - **Change Feed**: Captures every create, replace, and delete operation in order
-- **Azure Functions with Cosmos DB Triggers**: Compare the existing default trigger with explicit LatestVersion and AllVersionsAndDeletes processing
+- **Azure Function with Cosmos DB Trigger**: Executes automatically when changes are detected
 - **Lease Container**: Tracks which changes have been processed to ensure reliability and support for multiple function instances
 - **Azure Monitor**: Provides logging and metrics for the function execution
 - **Downstream Services**: Optional integration with other services that receive processed data
+
+The code registers the unchanged default trigger and separate LatestVersion and AllVersionsAndDeletes examples over the same source container.
 
 This serverless architecture enables highly scalable, event-driven processing with built-in resiliency.
 

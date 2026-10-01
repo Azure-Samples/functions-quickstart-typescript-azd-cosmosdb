@@ -1,5 +1,4 @@
 *.js.map
-*.ts
 .git*
 .vscode
 __azurite_db*__.json
@@ -8,4 +7,4 @@ __queuestorage__
 local.settings.json
 local.settings.json.template
 test
-tsconfig.json
+node_modules

@@ -138,7 +138,7 @@ module api './app/api.bicep' = {
       COSMOS_CONTAINER_NAME: cosmosSettings.container
       COSMOS_DATABASE_NAME: cosmosSettings.database
     }
-    virtualNetworkSubnetId: vnetEnabled ? serviceVirtualNetwork.outputs.appSubnetID : ''
+    virtualNetworkSubnetId: vnetEnabled ? serviceVirtualNetwork!.outputs.appSubnetID : ''
   }
 }
 
@@ -235,7 +235,7 @@ module storagePrivateEndpoint 'app/storage-PrivateEndpoint.bicep' = if (vnetEnab
     location: location
     tags: tags
     virtualNetworkName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
-    subnetName: vnetEnabled ? serviceVirtualNetwork.outputs.peSubnetName : '' // Keep conditional check for safety, though module won't run if !vnetEnabled
+    subnetName: vnetEnabled ? serviceVirtualNetwork!.outputs.peSubnetName : '' // Keep conditional check for safety, though module won't run if !vnetEnabled
     resourceName: storage.outputs.name
     enableBlob: storageEndpointConfig.enableBlob
     enableQueue: storageEndpointConfig.enableQueue
@@ -249,7 +249,7 @@ module dbPrivateEndpoint 'app/db-PrivateEndpoint.bicep' = if (vnetEnabled) {
   params: {
     cosmosDbAccountId: cosmosDb.outputs.cosmosDbAccountId
     vNetName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
-    dbSubnetName: serviceVirtualNetwork.outputs.dbSubnetName
+    dbSubnetName: serviceVirtualNetwork!.outputs.dbSubnetName
     location: location
     tags: tags
   }
